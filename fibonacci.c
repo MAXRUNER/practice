@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
   char *endptr;
   char *endptr2;
   if (argc != 3) {
-    printf("Usage: ./wordle num1 num2\n");
+    printf("Usage: ./fibonacci num1 num2\n");
     return 10;
   }
   num1 = strtod(argv[1], &endptr);
