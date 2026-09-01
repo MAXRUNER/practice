@@ -85,75 +85,90 @@ int main(int argc, char *argv[]) {
   load_database(&db);
 
   char *endptr;
+  char *smtnew;
 
   // adding stuff
   if (strcmp(argv[1], "add") == 0) {
-    if (argc != 2) {
-      printf("Usage: ./database add\n");
+
+    if (argc != 3) {
+      printf("Usage: ./database add <number>\n");
       free(db.students);
       return 1;
     }
 
-    if (db.size == db.capacity) {
-      db.capacity *= 2;
+    long new = strtol(argv[2], &smtnew, 10);
 
-      Student *temp = realloc(db.students, db.capacity * sizeof(Student));
+    if (smtnew == argv[2] || *smtnew != '\0' || new <= 0) {
+      printf("Number of people must be a positive integer.\n");
+      free(db.students);
+      return 1;
+    }
 
-      if (temp == NULL) {
-        printf("Memory allocation failed.\n");
+    for (int n = 0; n < new; n++) {
+
+      /* Make sure there is room for another student */
+      if (db.size == db.capacity) {
+        db.capacity *= 2;
+
+        Student *temp = realloc(db.students, db.capacity * sizeof(Student));
+
+        if (temp == NULL) {
+          printf("Memory allocation failed.\n");
+          free(db.students);
+          return 1;
+        }
+
+        db.students = temp;
+      }
+
+      Student *student = &db.students[db.size];
+
+      printf("\nStudent %d\n", n + 1);
+
+      printf("Student ID: ");
+      if (scanf("%d", &student->id) != 1) {
+        printf("Invalid ID.\n");
         free(db.students);
         return 1;
       }
 
-      db.students = temp;
-    }
+      /* Check duplicate IDs */
+      for (int i = 0; i < db.size; i++) {
+        if (db.students[i].id == student->id) {
+          printf("A student with that ID already exists.\n");
+          free(db.students);
+          return 1;
+        }
+      }
 
-    Student *student = &db.students[db.size];
-
-    printf("Student ID: ");
-    if (scanf("%d", &student->id) != 1) {
-      printf("Invalid ID.\n");
-      free(db.students);
-      return 1;
-    }
-
-    // check for duplicate ids
-    for (int i = 0; i < db.size; i++) {
-      if (db.students[i].id == student->id) {
-        printf("A student with that ID already exists.\n");
+      printf("Student Name: ");
+      if (scanf("%49s", student->name) != 1) {
+        printf("Invalid name.\n");
         free(db.students);
         return 1;
       }
-    }
 
-    printf("Student Name: ");
-    if (scanf("%49s", student->name) != 1) {
-      printf("Invalid name.\n");
-      free(db.students);
-      return 1;
-    }
+      printf("Student Age: ");
+      if (scanf("%d", &student->age) != 1) {
+        printf("Invalid age.\n");
+        free(db.students);
+        return 1;
+      }
 
-    printf("Student Age: ");
-    if (scanf("%d", &student->age) != 1) {
-      printf("Invalid age.\n");
-      free(db.students);
-      return 1;
-    }
+      printf("Student Grade: ");
+      if (scanf("%f", &student->grade) != 1) {
+        printf("Invalid grade.\n");
+        free(db.students);
+        return 1;
+      }
 
-    printf("Student Grade: ");
-    if (scanf("%f", &student->grade) != 1) {
-      printf("Invalid grade.\n");
-      free(db.students);
-      return 1;
-    }
+      db.size++;
 
-    db.size++;
+      printf("Student added.\n");
+    }
 
     save_database(&db);
-
-    printf("Student added.\n");
   }
-
   // DELETE
   else if (strcmp(argv[1], "delete") == 0) {
     if (argc != 3) {
