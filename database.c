@@ -15,6 +15,357 @@ typedef struct {
   int capacity;
 } Database;
 
+int compare_ints(const void *a, const void *b);
+void load_database(Database *db);
+void save_database(Database *db);
+void print_student(Student *student);
+void add(Database *db, int new);
+int csb_sum_bs(const void *a,
+               const void *b); // go down for variable name reason
+
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    printf("Usage: ./database <command>\n");
+    return 1;
+  }
+
+  Database db;
+
+  db.size = 0;
+  db.capacity = 10;
+
+  db.students = malloc(db.capacity * sizeof(Student));
+
+  if (db.students == NULL) {
+    printf("Memory allocation failed.\n");
+    return 1;
+  }
+
+  load_database(&db);
+  int ids[db.size];
+  float grades[db.size];
+  int age[db.size];
+  char *endptr;
+  char *smtnew;
+
+  // adding stuff
+  if (strcmp(argv[1], "add") == 0) {
+
+    if (argc != 3) {
+      printf("Usage: ./database add <number>\n");
+      free(db.students);
+      return 1;
+    }
+
+    long new = strtol(argv[2], &smtnew, 10);
+
+    if (smtnew == argv[2] || *smtnew != '\0' || new <= 0) {
+      printf("Number of people must be a positive integer.\n");
+      free(db.students);
+      return 1;
+    }
+    add(&db, new);
+    save_database(&db);
+    free(db.students);
+  }
+  // DELETE
+  else if (strcmp(argv[1], "delete") == 0) {
+    if (argc != 3) {
+      printf("Usage: ./database delete <id>\n");
+      free(db.students);
+      return 1;
+    }
+
+    if (strcmp(argv[2], "all") == 0) {
+      printf("Are you sure you would like the delete the contents of "
+             "database.dat? (Y/n): ");
+      char y_n;
+      if (scanf("%c", &y_n) != 1) {
+        printf("Invalid input. Ignoring function...");
+      } else if (y_n != 'y') {
+        FILE *file = fopen("database.dat", "wb");
+
+        if (file == NULL) {
+          printf("Could not open file.\n");
+          return 1;
+        }
+
+        fclose(file);
+      } else if (y_n != 'n') {
+        printf("0 changes made.");
+        return 1;
+      }
+
+      long id = strtol(argv[2], &endptr, 10);
+
+      if (endptr == argv[2] || *endptr != '\0') {
+        printf("Invalid ID.\n");
+        free(db.students);
+        return 1;
+      }
+
+      int found = 0;
+
+      for (int i = 0; i < db.size; i++) {
+        if (db.students[i].id == id) {
+          found = 1;
+
+          for (int j = i; j < db.size - 1; j++) {
+            db.students[j] = db.students[j + 1];
+          }
+
+          db.size--;
+          break;
+        }
+      }
+
+      if (found) {
+        save_database(&db);
+        printf("Student deleted.\n");
+      } else {
+        printf("Student not found.\n");
+      }
+    }
+    // search for shi
+    else if (strcmp(argv[1], "search") == 0) {
+      if (argc != 4) {
+        printf("Usage: ./database search <parameter> <value>\n");
+        free(db.students);
+        return 1;
+      }
+
+      int found = 0;
+
+      // SEARCH ID
+      if (strcmp(argv[2], "id") == 0) {
+        long id = strtol(argv[3], &endptr, 10);
+
+        if (endptr == argv[3] || *endptr != '\0') {
+          printf("Invalid ID.\n");
+          free(db.students);
+          return 1;
+        }
+
+        for (int i = 0; i < db.size; i++) {
+          if (db.students[i].id == id) {
+            print_student(&db.students[i]);
+            found = 1;
+          }
+        }
+      }
+
+      // search for a name
+      else if (strcmp(argv[2], "name") == 0) {
+        for (int i = 0; i < db.size; i++) {
+          if (strcmp(db.students[i].name, argv[3]) == 0) {
+            print_student(&db.students[i]);
+            found = 1;
+          }
+        }
+      }
+
+      // search for an age
+      else if (strcmp(argv[2], "age") == 0) {
+        long age = strtol(argv[3], &endptr, 10);
+
+        if (endptr == argv[3] || *endptr != '\0') {
+          printf("Invalid age.\n");
+          free(db.students);
+          return 1;
+        }
+        for (int i = 0; i < db.size; i++) {
+          if (db.students[i].age == age) {
+            print_student(&db.students[i]);
+            found = 1;
+          }
+        }
+      }
+      // search for a grade
+      else if (strcmp(argv[2], "grade") == 0) {
+        float grade = strtof(argv[3], &endptr);
+
+        if (endptr == argv[3] || *endptr != '\0') {
+          printf("Invalid grade.\n");
+          free(db.students);
+          return 1;
+        }
+        for (int i = 0; i < db.size; i++) {
+          if (db.students[i].grade == grade) {
+            print_student(&db.students[i]);
+            found = 1;
+          }
+        }
+      } else {
+        printf("Unknown search field.\n");
+        free(db.students);
+        return 1;
+      }
+
+      if (!found) {
+        printf("No matching student found.\n");
+      }
+    }
+    // find func
+    else if (strcmp(argv[1], "find") == 0) {
+      if (argc != 3) {
+        printf("Usage: ./database find <partial-name>\n");
+        free(db.students);
+        return 1;
+      }
+
+      int found = 0;
+
+      for (int i = 0; i < db.size; i++) {
+        if (strstr(db.students[i].name, argv[2]) != NULL) {
+          print_student(&db.students[i]);
+          found = 1;
+        }
+      }
+
+      if (found == 0) {
+        printf("No matching student found.\n");
+      }
+    }
+
+    // list func
+    else if (strcmp(argv[1], "list") == 0) {
+      if (argc != 2) {
+        printf("Usage: ./database list\n");
+        free(db.students);
+        return 1;
+      }
+      if (db.size == 0) {
+        printf("Database is empty.\n");
+      }
+      for (int i = 0; i < db.size; i++) {
+        print_student(&db.students[i]);
+      }
+    }
+
+    else if (strcmp(argv[1], "update") == 0) {
+
+      if (argc != 3) {
+        printf("Usage: ./database update <id>\n");
+        free(db.students);
+        return 1;
+      }
+
+      long id = strtol(argv[2], &endptr, 10);
+
+      if (endptr == argv[2] || *endptr != '\0') {
+        printf("Invalid ID.\n");
+        free(db.students);
+        return 1;
+      }
+
+      int found = 0;
+
+      for (int i = 0; i < db.size; i++) {
+
+        if (db.students[i].id == id) {
+
+          found = 1;
+
+          Student *student = &db.students[i];
+
+          printf("Updated Name: ");
+          if (scanf("%49s", student->name) != 1) {
+            printf("Invalid name.\n");
+            free(db.students);
+            return 1;
+          }
+
+          printf("Updated Age: ");
+          if (scanf("%d", &student->age) != 1) {
+            printf("Invalid age.\n");
+            free(db.students);
+            return 1;
+          }
+
+          printf("Updated Grade: ");
+          if (scanf("%f", &student->grade) != 1) {
+            printf("Invalid grade.\n");
+            free(db.students);
+            return 1;
+          }
+
+          save_database(&db);
+
+          printf("Student updated.\n");
+
+          break;
+        }
+      }
+
+      if (!found) {
+        printf("Student not found.\n");
+      }
+    }
+
+    else if (strcmp(argv[1], "sort") == 0) {
+      if (argc != 3) {
+        printf("Usage: ./database sort <parameter>");
+        return 1;
+      }
+      if (strcmp(argv[2], "id") == 0) {
+        for (int i = 0; i < db.size; i++) {
+          ids[i] = db.students[i].id;
+        }
+        int num_ids = sizeof(ids) / sizeof(ids[0]);
+        qsort(ids, num_ids, sizeof(int), csb_sum_bs);
+
+        for (int i = 0; i < num_ids; i++) {
+          for (int j = 0; j < db.size; j++) {
+            if (db.students[j].id == ids[i]) {
+              print_student(&db.students[j]);
+              break;
+            }
+          }
+        }
+      } else if (strcmp(argv[2], "grade") == 0) {
+        for (int i = 0; i < db.size; i++) {
+          grades[i] = db.students[i].grade;
+        }
+        int num_ids = sizeof(ids) / sizeof(ids[0]);
+        qsort(grades, num_ids, sizeof(float), csb_sum_bs);
+
+        for (int i = 0; i < num_ids; i++) {
+          for (int j = 0; j < db.size; j++) {
+            if (db.students[j].grade == grades[i]) {
+              print_student(&db.students[j]);
+              break;
+            }
+          }
+        }
+      } else if (strcmp(argv[2], "age") == 0) {
+        for (int i = 0; i < db.size; i++) {
+          age[i] = db.students[i].age;
+        }
+        int num_ids = sizeof(ids) / sizeof(ids[0]);
+        qsort(age, num_ids, sizeof(int), csb_sum_bs);
+
+        for (int i = 0; i < num_ids; i++) {
+          for (int j = 0; j < db.size; j++) {
+            if (db.students[j].age == grades[i]) {
+              print_student(&db.students[j]);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    else {
+      printf("Unknown command: %s\n", argv[1]);
+      free(db.students);
+      return 1;
+    }
+
+    free(db.students);
+    return 0;
+  }
+}
+
 void load_database(Database *db) {
   FILE *file = fopen("database.dat", "rb");
 
@@ -46,6 +397,10 @@ void load_database(Database *db) {
   fclose(file);
 }
 
+int compare_ints(const void *a, const void *b) {
+  return (*(int *)a - *(int *)b);
+}
+
 void save_database(Database *db) {
   FILE *file = fopen("database.dat", "wb");
 
@@ -64,268 +419,75 @@ void print_student(Student *student) {
          student->grade);
 }
 
-int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    printf("Usage: ./database <command>\n");
-    return 1;
-  }
+int csb_sum_bs(const void *a,
+               const void *b) // csb_sum_bs = compare students by some bs
+{
+  Student *s1 = (Student *)a;
+  Student *s2 = (Student *)b;
 
-  Database db;
+  return *(int *)a - *(int *)b;
+}
 
-  db.size = 0;
-  db.capacity = 10;
+void add(Database *db, int new) {
+  for (int n = 0; n < new; n++) {
 
-  db.students = malloc(db.capacity * sizeof(Student));
+    /* Make sure there is room for another student */
+    if (db->size == db->capacity) {
+      db->capacity *= 2;
 
-  if (db.students == NULL) {
-    printf("Memory allocation failed.\n");
-    return 1;
-  }
+      Student *temp = realloc(db->students, db->capacity * sizeof(Student));
 
-  load_database(&db);
+      if (temp == NULL) {
+        printf("Memory allocation failed.\n");
+        return;
+      }
 
-  char *endptr;
-  char *smtnew;
-
-  // adding stuff
-  if (strcmp(argv[1], "add") == 0) {
-
-    if (argc != 3) {
-      printf("Usage: ./database add <number>\n");
-      free(db.students);
-      return 1;
+      db->students = temp;
     }
 
-    long new = strtol(argv[2], &smtnew, 10);
+    Student *student = &db->students[db->size];
 
-    if (smtnew == argv[2] || *smtnew != '\0' || new <= 0) {
-      printf("Number of people must be a positive integer.\n");
-      free(db.students);
-      return 1;
-    }
+    printf("\nStudent %d\n", n + 1);
 
-    for (int n = 0; n < new; n++) {
-
-      /* Make sure there is room for another student */
-      if (db.size == db.capacity) {
-        db.capacity *= 2;
-
-        Student *temp = realloc(db.students, db.capacity * sizeof(Student));
-
-        if (temp == NULL) {
-          printf("Memory allocation failed.\n");
-          free(db.students);
-          return 1;
-        }
-
-        db.students = temp;
-      }
-
-      Student *student = &db.students[db.size];
-
-      printf("\nStudent %d\n", n + 1);
-
-      printf("Student ID: ");
-      if (scanf("%d", &student->id) != 1) {
-        printf("Invalid ID.\n");
-        free(db.students);
-        return 1;
-      }
-
-      /* Check duplicate IDs */
-      for (int i = 0; i < db.size; i++) {
-        if (db.students[i].id == student->id) {
-          printf("A student with that ID already exists.\n");
-          free(db.students);
-          return 1;
-        }
-      }
-
-      printf("Student Name: ");
-      if (scanf("%49s", student->name) != 1) {
-        printf("Invalid name.\n");
-        free(db.students);
-        return 1;
-      }
-
-      printf("Student Age: ");
-      if (scanf("%d", &student->age) != 1) {
-        printf("Invalid age.\n");
-        free(db.students);
-        return 1;
-      }
-
-      printf("Student Grade: ");
-      if (scanf("%f", &student->grade) != 1) {
-        printf("Invalid grade.\n");
-        free(db.students);
-        return 1;
-      }
-
-      db.size++;
-
-      printf("Student added.\n");
-    }
-
-    save_database(&db);
-  }
-  // DELETE
-  else if (strcmp(argv[1], "delete") == 0) {
-    if (argc != 3) {
-      printf("Usage: ./database delete <id>\n");
-      free(db.students);
-      return 1;
-    }
-
-    long id = strtol(argv[2], &endptr, 10);
-
-    if (endptr == argv[2] || *endptr != '\0') {
+    printf("Student ID: ");
+    if (scanf("%d", &student->id) != 1) {
       printf("Invalid ID.\n");
-      free(db.students);
-      return 1;
+      return;
     }
 
-    int found = 0;
+    if (student->id < 1) {
+      printf("ID must be a positive integer.\n");
+      return;
+    }
 
-    for (int i = 0; i < db.size; i++) {
-      if (db.students[i].id == id) {
-        found = 1;
-
-        for (int j = i; j < db.size - 1; j++) {
-          db.students[j] = db.students[j + 1];
-        }
-
-        db.size--;
-        break;
+    /* Check duplicate IDs */
+    for (int i = 0; i < db->size; i++) {
+      if (db->students[i].id == student->id) {
+        printf("A student with that ID already exists.\n");
+        return;
       }
     }
 
-    if (found) {
-      save_database(&db);
-      printf("Student deleted.\n");
-    } else {
-      printf("Student not found.\n");
+    printf("Student Name: ");
+    if (scanf("%49s", student->name) != 1) {
+      printf("Invalid name.\n");
+      return;
     }
+
+    printf("Student Age: ");
+    if (scanf("%d", &student->age) != 1) {
+      printf("Invalid age.\n");
+      return;
+    }
+
+    printf("Student Grade: ");
+    if (scanf("%f", &student->grade) != 1) {
+      printf("Invalid grade.\n");
+      return;
+    }
+
+    db->size++;
+
+    printf("Student added.\n");
   }
-  // search for shi
-  else if (strcmp(argv[1], "search") == 0) {
-    if (argc != 4) {
-      printf("Usage: ./database search <field> <value>\n");
-      free(db.students);
-      return 1;
-    }
-
-    int found = 0;
-
-    // SEARCH ID
-    if (strcmp(argv[2], "id") == 0) {
-      long id = strtol(argv[3], &endptr, 10);
-
-      if (endptr == argv[3] || *endptr != '\0') {
-        printf("Invalid ID.\n");
-        free(db.students);
-        return 1;
-      }
-
-      for (int i = 0; i < db.size; i++) {
-        if (db.students[i].id == id) {
-          print_student(&db.students[i]);
-          found = 1;
-        }
-      }
-    }
-
-    // search for a name
-    else if (strcmp(argv[2], "name") == 0) {
-      for (int i = 0; i < db.size; i++) {
-        if (strcmp(db.students[i].name, argv[3]) == 0) {
-          print_student(&db.students[i]);
-          found = 1;
-        }
-      }
-    }
-
-    // search for an age
-    else if (strcmp(argv[2], "age") == 0) {
-      long age = strtol(argv[3], &endptr, 10);
-
-      if (endptr == argv[3] || *endptr != '\0') {
-        printf("Invalid age.\n");
-        free(db.students);
-        return 1;
-      }
-      for (int i = 0; i < db.size; i++) {
-        if (db.students[i].age == age) {
-          print_student(&db.students[i]);
-          found = 1;
-        }
-      }
-    }
-    // search for a grade
-    else if (strcmp(argv[2], "grade") == 0) {
-      float grade = strtof(argv[3], &endptr);
-
-      if (endptr == argv[3] || *endptr != '\0') {
-        printf("Invalid grade.\n");
-        free(db.students);
-        return 1;
-      }
-      for (int i = 0; i < db.size; i++) {
-        if (db.students[i].grade == grade) {
-          print_student(&db.students[i]);
-          found = 1;
-        }
-      }
-    } else {
-      printf("Unknown search field.\n");
-      free(db.students);
-      return 1;
-    }
-
-    if (!found) {
-      printf("No matching student found.\n");
-    }
-  }
-  // find func
-  else if (strcmp(argv[1], "find") == 0) {
-    if (argc != 3) {
-      printf("Usage: ./database find <partial-name>\n");
-      free(db.students);
-      return 1;
-    }
-
-    int found = 0;
-
-    for (int i = 0; i < db.size; i++) {
-      if (strstr(db.students[i].name, argv[2]) != NULL) {
-        print_student(&db.students[i]);
-        found = 1;
-      }
-    }
-
-    if (!found) {
-      printf("No matching student found.\n");
-    }
-  }
-
-  // list func
-  else if (strcmp(argv[1], "list") == 0) {
-    if (argc != 2) {
-      printf("Usage: ./database list\n");
-      free(db.students);
-      return 1;
-    }
-    if (db.size == 0) {
-      printf("Database is empty.\n");
-    }
-    for (int i = 0; i < db.size; i++) {
-      print_student(&db.students[i]);
-    }
-  } else {
-    printf("Unknown command: %s\n", argv[1]);
-    free(db.students);
-    return 1;
-  }
-  free(db.students);
-  return 0;
 }
